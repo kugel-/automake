@@ -64,6 +64,14 @@
 
 New in 1.16:
 
+* New option object-shortname
+
+  - This option affects the file name Automake uses for object files. Enabling
+    gives shorter, path-independent default object file names.
+
+  - It does not affect the directory where these object files will be placed.
+    Thus, it is recommended to combine this option with subdir-objects.
+
 * Bugs fixed:
 
   - Automatic dependency tracking has been fixed to work also when the

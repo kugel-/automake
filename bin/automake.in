@@ -1711,7 +1711,24 @@ sub handle_single_transform
 		# some situations.  So we provide _SHORTNAME to
 		# override.
 
-		my $dname = $derived;
+    my $dname = $derived;
+    if (option 'object-shortname')
+      {
+        # If object-shortname is enabled the object's filename shall not contain
+        # the parts derived from its path (e.g. if %C% is used), but just the
+        # name of the object's target e.g. instead of path_to_binary-object.o
+        # just binary-object
+        my $dirname = dirname ($_file);
+        if ($dirname ne ".")
+          {
+            my $canon_dirname = canonicalize ($dirname) . "_";
+            # should never fail since $derived is also
+            # constructed using canonicalize()
+            prog_error("unexpected object name: " . $derived)
+              if (index ($derived, $canon_dirname) != 0);
+            $dname = substr ($derived, length ($canon_dirname));
+          }
+      }
 		my $var = var ($derived . '_SHORTNAME');
 		if ($var)
 		{

@@ -293,6 +293,7 @@ sub _is_valid_easy_option ($)
     silent-rules
     std-options
     subdir-objects
+    object-shortname
   );
 }
 

@@ -10286,6 +10286,53 @@ the source file.  For instance, if the source file is
 @file{subdir/file.cxx}, then the output file would be
 @file{subdir/file.o}.
 
+@item @option{object-shortname}
+@cindex Options, @option{object-shortname}
+@opindex object-shortname
+If this option is specified, then object names constructed by Automake are
+shortened such that they are prefixed only by the target variable they build,
+therefore omitting the canonicalized path (@pxref{Canonicalization}).  The
+effect is particularly visible if you use @file{Makefile} fragment inclusion
+feature (@pxref{Include}).  Here, object names for files prefixed by @code{%D%}
+would be named @samp{path_to_foo-object.o}.  With the this option the object
+name becomes just @samp{foo-object.o}.
+
+Enabling the option is basically equivalent to setting @code{foo_SHORTNAME =
+foo}.  However, it also works if a Makefile fragment is conditionally included.
+Note that actually setting @code{foo_SHORTNAME} still overrides the object
+name, regardless of this option.
+
+It is recommended to combine this option and @option{subdir-objects} because
+the object names become independent of the path to the source files. This
+increases the possibility of object file name conflicts if only a single output
+directory is used.
+
+The rationale for this option is to allow a setup where there is a top-level
+@file{Makefile.am} which includes fragments from subdirectories, and a Makefile
+is generated in each directory.
+
+@example
+Makefile.am:
+@code{if ENABLE_SUB}
+@code{include sub/Makefile.am}
+@code{endif}
+
+sub/Makefile.am:
+@code{bin_PROGRAMS = %D%/foo}
+@code{%C%_foo_CFLAGS = $(AM_CFLAGS) -g}
+@end example
+
+Provided @option{subdir-objects} is enabled, executing @command{make} in either
+directory will build @file{foo} using the same object files.  Without this
+option, the object file names would be different (@file{sub_foo-foo.o} and
+@file{foo-foo.o}), resulting in extraneous rebuilds and duplicated object
+files.  Without subdir-objects the object file names are identical but since
+they are placed in different directories rebuilds still occur.
+
+The benefit of this setup is that executing @command{make} in the top-level
+directory does not use recursive make, which is usually faster and brings
+global knowledge about dependencies (@pxref{Subdirectories}).
+
 @anchor{tar-formats}
 @item @option{tar-v7}
 @itemx @option{tar-ustar}
