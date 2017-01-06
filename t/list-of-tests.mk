@@ -1191,6 +1191,7 @@ t/tar-ustar-id-too-high.sh \
 t/tar-override.sh \
 t/target-cflags.sh \
 t/targetclash.sh \
+t/test-object-shortname.sh \
 t/tests-environment-fd-redirect.sh \
 t/tests-environment-and-log-compiler.sh \
 t/txinfo-absolute-srcdir-pr408.sh \
