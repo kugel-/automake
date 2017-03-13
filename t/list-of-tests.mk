@@ -1046,6 +1046,7 @@ t/subdir-with-slash.sh \
 t/subdir-subsub.sh \
 t/subdir-distclean.sh \
 t/subdir-keep-going-pr12554.sh \
+t/subdir-objects-objname.sh \
 t/subobj.sh \
 t/subobj2.sh \
 t/subobj4.sh \

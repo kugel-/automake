@@ -64,6 +64,12 @@
 
 New in 1.16:
 
+* Miscellaneous changes
+
+  - When subdir-objects is in effect, Automake will now construct shorter
+    object file names. This should make the use of $var_SHORTNAME is unecessary
+    in many cases. $var_SHORTNAME is discouraged anyway.
+
 * Bugs fixed:
 
   - Automatic dependency tracking has been fixed to work also when the

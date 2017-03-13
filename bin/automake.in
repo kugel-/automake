@@ -1562,6 +1562,16 @@ sub check_libobjs_sources
     }
 }
 
+# http://linux.seindal.dk/2005/09/09/longest-common-prefix-in-perl/
+sub longest_common_prefix {
+    my $prefix = shift;
+
+    for (@_)
+      {
+	chop $prefix while (! /^$prefix/);
+      }
+    return $prefix;
+}
 
 # @OBJECTS
 # handle_single_transform ($VAR, $TOPPARENT, $DERIVED, $OBJ, $FILE, %TRANSFORM)
@@ -1710,8 +1720,27 @@ sub handle_single_transform
 		# name that is too long for losing systems, in
 		# some situations.  So we provide _SHORTNAME to
 		# override.
-
+		# If subdir-object is in effect, it's not necessary to
+		# use the complete 'DERIVED_OBJECT' since objects are
+		# placed next to their source file. Therefore it is already
+		# unique (within that directory). Thus, we strip the directory
+		# components of 'DERIVED_OBJECT' (that quite likely the result from
+		# %canon_reldir%/%C% usage). This enables avoiding explicit _SHORTNAME
+		# unecessary in many cases.
 		my $dname = $derived;
+		if ($directory ne '' && option 'subdir-objects')
+		  {
+		    # At this point, we don't clear information about what parts
+		    # of $derived are truly path components. We can determine
+		    # by comparing against the canonicalization of $directory.
+		    # And if $directory is empty there is nothing to strip anyway.
+		    my $canon_dirname = canonicalize ($directory) . "_";
+		    my @names = ($derived, $canon_dirname);
+		    my $prefix = longest_common_prefix (@names);
+		    # After canonicalization, "_" separates directories, thus use
+		    # everything after the the last separator.
+		    $dname = substr ($derived, rindex ($prefix, "_")+1);
+		  }
 		my $var = var ($derived . '_SHORTNAME');
 		if ($var)
 		{
