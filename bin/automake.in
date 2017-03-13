@@ -1724,7 +1724,7 @@ sub handle_single_transform
             my $canon_dirname = canonicalize ($dirname) . "_";
             # should never fail since $derived is also
             # constructed using canonicalize()
-            prog_error("unexpected object name: " . $derived)
+            prog_error("unexpected object name: " . $derived . " vs " . $dirname)
               if (index ($derived, $canon_dirname) != 0);
             $dname = substr ($derived, length ($canon_dirname));
           }

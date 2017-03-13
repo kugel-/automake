@@ -18,7 +18,7 @@
 
 . test-init.sh
 
-mkdir -p one/two
+mkdir -p one/one one/two
 
 cat >> configure.ac << 'END'
 AC_PROG_CC
@@ -46,16 +46,30 @@ include one/Makefile.inc
 END
 
 cat > one/Makefile.inc << 'END'
+include %D%/one/Makefile.inc
 include %D%/two/Makefile.inc
 END
 
-cat > one/two/Makefile.inc << 'END'
+cat > one/one/Makefile.inc << 'END'
 noinst_PROGRAMS = %D%/test
 %C%_test_CFLAGS = $(AM_CFLAGS)
 %C%_test_SOURCES = %D%/test.c
 END
 
-cat > one/two/test.c << 'END'
+cat > one/two/Makefile.inc << 'END'
+noinst_PROGRAMS = %D%/test
+%C%_test_CFLAGS = $(AM_CFLAGS)
+%C%_test_SOURCES = %D%/sub/test.c
+END
+
+cat > one/one/test.c << 'END'
+int main()
+{
+	return 0;
+}
+END
+
+cat > one/two/sub/test.c << 'END'
 int main()
 {
 	return 0;
