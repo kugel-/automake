@@ -1229,6 +1229,7 @@ sub check_user_variables
 # Call finish function for each language that was used.
 sub handle_languages ()
 {
+  print("handle_languages ()\n");
     if (! option 'no-dependencies')
       {
         # Include auto-dep code.  Don't include it if DEP_FILES would
@@ -1376,6 +1377,19 @@ sub handle_languages ()
 
 	    # We might see a given object twice, for instance if it is
 	    # used under different conditions.
+	    # Normally we need to process the file only once. However, the duplication
+	    # may be the result of object file name striping or use of _SHORTNAME. If that
+	    # happens, we do undo that by prepending $derived and check again. But only
+	    # do this if the file was renamed and doesn't already start with $derived
+	    if (defined $seen_files{$obj}) {
+	      if ($derived ne 'AM' && index($obj, $derived . "_") != 0) {
+		# the file was renamed, that means the basename part upto to first dash
+		# is prepended by Automake.
+		my $base = basename($obj);
+		$base = substr($base, index($base, '-') + 1);
+		$obj = dirname($obj) ."/". $derived ."-". $base;
+	      }
+	    }
 	    next if defined $seen_files{$obj};
 	    $seen_files{$obj} = 1;
 
@@ -1573,6 +1587,17 @@ sub longest_common_prefix {
     return $prefix;
 }
 
+sub may_truncate {
+    my ($derived, %transform) = @_;
+    my @blacklist = $transform{'TRUNCATE_OBJNAME_BLACKLIST'};
+
+    # disallow truncation if $derived ends with any of the blacklisted targets
+    foreach my $item (@blacklist) {
+      return 0 if ($item eq substr($derived, - length($item)));
+    }
+    return 1;
+}
+
 # @OBJECTS
 # handle_single_transform ($VAR, $TOPPARENT, $DERIVED, $OBJ, $FILE, %TRANSFORM)
 # -----------------------------------------------------------------------------
@@ -1723,12 +1748,18 @@ sub handle_single_transform
 		# If subdir-object is in effect, it's not necessary to
 		# use the complete 'DERIVED_OBJECT' since objects are
 		# placed next to their source file. Therefore it is already
-		# unique (within that directory). Thus, we strip the directory
+		# unique (within that directory). Thus, we try to avoid unecessarily long
+		# file names by stripping the directory
 		# components of 'DERIVED_OBJECT' (that quite likely the result from
-		# %canon_reldir%/%C% usage). This enables avoiding explicit _SHORTNAME
-		# unecessary in many cases.
+		# %canon_reldir%/%C% usage). This allows to avoid explicit _SHORTNAME
+		# usage in many cases.
+		# NOTE: In some setups, the stripping may lead to duplicated objects,
+		# even in presence of per-executable flags, for example if there
+		# are identically-named programs in different directories, so
+		# these targets must be exempted using a blacklist
 		my $dname = $derived;
-		if ($directory ne '' && option 'subdir-objects')
+		print("tr " . $transform{'TRUNCATE_OBJNAME_BLACKLIST'});
+		if ($directory ne '' && option 'subdir-objects' && may_truncate($derived, %transform))
 		  {
 		    # At this point, we don't clear information about what parts
 		    # of $derived are truly path components. We can determine
@@ -1751,7 +1782,6 @@ sub handle_single_transform
 		    $dname = $var->variable_value;
 		}
 		$object = $dname . '-' . $object;
-
 		prog_error ($lang->name . " flags defined without compiler")
 		  if ! defined $lang->compile;
 
@@ -1928,6 +1958,7 @@ EOF
 
 	$linkers_used{$linker} = 1;
 
+	print ("adding " . $object . " to " . $derived . "\n");
 	push (@result, $object);
 
 	if (! defined $object_map{$object})
@@ -2157,11 +2188,15 @@ sub handle_source_transform
 				   $one_file, $obj,
 				   $default_source, %transform);
 	$linker ||= resolve_linker (%linkers_used);
+	print("result ... ");
+	print(@result);
 	define_pretty_variable ($one_file . '_OBJECTS', TRUE, $where, @result);
     }
     else
     {
 	@keys = map { '$(' . $_ . $one_file . '_OBJECTS)' } @keys;
+	print("keys ... ");
+	print(@keys);
 	define_pretty_variable ($one_file . '_OBJECTS', TRUE, $where, @keys);
     }
 
@@ -2460,6 +2495,18 @@ sub handle_libtool ()
 				   LTRMS => join ("\n", @libtool_rms));
 }
 
+# Expects to be passed a list as returned via am_install_var()
+sub find_duplicate_basenames
+{
+  my %seen = ();
+  my @dups = ();
+  foreach my $pair (@_) {
+    my $base = basename(@$pair[1]);
+    push (@dups, $base) if defined $seen{basename($base)};
+    $seen{$base} = 1;
+  }
+  return @dups;
+}  
 
 sub handle_programs ()
 {
@@ -2471,6 +2518,11 @@ sub handle_programs ()
 
   my $seen_global_libobjs =
     var ('LDADD') && handle_lib_objects ('', 'LDADD');
+
+  # Check if we have programs with identical basename. In this case, the automatic
+  # object file name truncation is disabled because the object file names may clash
+  # (this only applies to subdir-object setups)
+  my @blacklist = find_duplicate_basenames (@proglist);
 
   foreach my $pair (@proglist)
     {
@@ -2490,7 +2542,7 @@ sub handle_programs ()
       $where->set (INTERNAL->get);
 
       my $linker = handle_source_transform ($xname, $one_file, $obj, $where,
-                                            NONLIBTOOL => 1, LIBTOOL => 0);
+                                            NONLIBTOOL => 1, LIBTOOL => 0, TRUNCATE_OBJNAME_BLACKLIST => @blacklist);
 
       if (var ($xname . "_LDADD"))
 	{
@@ -2570,6 +2622,11 @@ sub handle_libraries ()
   define_variable ('ARFLAGS', 'cru', INTERNAL);
   define_verbose_tagvar ('AR');
 
+  # Check if we have libraries with identical basename. In this case, the automatic
+  # object file name truncation is disabled because the object file names may clash
+  # (this only applies to subdir-object setups)
+  my @blacklist = find_duplicate_basenames (@liblist);
+
   foreach my $pair (@liblist)
     {
       my ($where, $onelib) = @$pair;
@@ -2626,7 +2683,8 @@ sub handle_libraries ()
       set_seen ('EXTRA_' . $xlib . '_DEPENDENCIES');
 
       handle_source_transform ($xlib, $onelib, $obj, $where,
-                               NONLIBTOOL => 1, LIBTOOL => 0);
+                               NONLIBTOOL => 1, LIBTOOL => 0,
+                               TRUNCATE_OBJNAME_BLACKLIST => @blacklist);
 
       # If the resulting library lies in a subdirectory,
       # make sure this directory will exist.
@@ -2757,6 +2815,11 @@ sub handle_ltlibraries ()
 	 skip_ac_subst => 1);
     }
 
+  # Check if we have libraries with identical basename. In this case, the automatic
+  # object file name truncation is disabled because the object file names may clash
+  # (this only applies to subdir-object setups)
+  my @blacklist = find_duplicate_basenames (@liblist);
+
   foreach my $pair (@liblist)
     {
       my ($where, $onelib) = @$pair;
@@ -2829,7 +2892,8 @@ sub handle_ltlibraries ()
 
 
       my $linker = handle_source_transform ($xlib, $onelib, $obj, $where,
-                                            NONLIBTOOL => 0, LIBTOOL => 1);
+                                            NONLIBTOOL => 0, LIBTOOL => 1,
+                                            TRUNCATE_OBJNAME_BLACKLIST => @blacklist);
 
       # Determine program to use for link.
       my($xlink, $vlink) = define_per_target_linker_variable ($linker, $xlib);

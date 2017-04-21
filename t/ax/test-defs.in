@@ -132,7 +132,7 @@ ACLOCAL="$am_original_ACLOCAL -Werror"
 # -Wnone or/and -Wno-error.
 # Tests who want complete control over automake command-line options
 # should use $am_original_AUTOMAKE instead.
-AUTOMAKE="$am_original_AUTOMAKE --foreign -Werror -Wall"
+AUTOMAKE="$am_original_AUTOMAKE --foreign -Werror -Wall "
 
 # POSIX no longer requires 'egrep' and 'fgrep',
 # but some hosts lack 'grep -E' and 'grep -F'.
